@@ -1,0 +1,44 @@
+use std::env;
+use dotenvy::dotenv;
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub database_url: String,
+    pub jwt_secret: String,
+    pub db_type: DbType,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DbType {
+    Sql,
+    Surreal,
+}
+
+impl Config {
+    pub fn init() -> Config {
+        // 1. Load the .env file (if it exists)
+        dotenv().ok();
+
+        // 2. Read the DATABASE_URL
+        let database_url = env::var("DATABASE_URL")
+            .expect("DATABASE_URL must be set in .env file");
+
+        // 3. Read the JWT_SECRET
+        let jwt_secret = env::var("JWT_SECRET")
+            .expect("JWT_SECRET must be set in .env file");
+
+        // 4. Determine DB_TYPE (Defaults to Sql if not set)
+        let db_type_str = env::var("DB_TYPE").unwrap_or_else(|_| "sql".to_string());
+
+        let db_type = match db_type_str.to_lowercase().as_str() {
+            "surreal" => DbType::Surreal,
+            _ => DbType::Sql,
+        };
+
+        Config {
+            database_url,
+            jwt_secret,
+            db_type,
+        }
+    }
+}
