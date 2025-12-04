@@ -1,3 +1,4 @@
+#![allow(unused)]
 mod config;
 mod db;
 mod error;
@@ -9,12 +10,17 @@ use axum::{extract::State, routing::get, Router};
 use sqlx::{PgPool, Row};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use dotenvy::dotenv;
 
 use crate::config::{Config, DbType};
 use crate::db::sql::SqlxRepo;
 
+// TODO: Soft exit ctrl-c handler
+
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
     // 1. Initialize Logging
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
