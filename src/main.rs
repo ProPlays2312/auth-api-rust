@@ -69,7 +69,9 @@ async fn main() {
     match TcpListener::bind(&addr).await {
         Ok(listener) => {
             println!("[+] Server listening on http://{addr}");
-            if let Err(e) = axum::serve(listener, app).await {
+            if let Err(e) = axum::serve(listener, app)
+                .with_graceful_shutdown(shutdown_signal())
+                .await {
                 eprintln!("[!] Server crashed: {e}");
                 process::exit(1);
             }
@@ -99,4 +101,13 @@ async fn test_database_connection(State(pool): State<PgPool>) -> String {
         }
         Err(e) => format!("[!] Database Query Failed: {}", e),
     }
+}
+
+async fn shutdown_signal() {
+    // Wait for the CTRL+C signal
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to install Ctrl+C handler");
+
+    println!("\n[!] Ctrl+C received. Shutting down gracefully...");
 }
