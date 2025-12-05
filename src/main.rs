@@ -1,4 +1,7 @@
-#![allow(unused)]
+#![allow(unused)] // For code snippet completeness - remove in actual code
+#![warn(clippy::pedantic)] // Enable Clippy lints
+#![allow(clippy::missing_errors_doc)] // Allow missing error docs for brevity
+
 mod config;
 mod db;
 mod error;
@@ -8,81 +11,92 @@ mod utils;
 
 use axum::{extract::State, routing::get, Router};
 use sqlx::{PgPool, Row};
+use std::process;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use dotenvy::dotenv;
 
-use crate::config::{Config, DbType};
+use crate::config::{DbType, Settings};
 use crate::db::sql::SqlxRepo;
-
-// TODO: Soft exit ctrl-c handler
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
-
     // 1. Initialize Logging
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "debug".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    println!("🚀 Starting Auth API...");
+    println!("[+] Starting Auth API...");
 
     // 2. Load Configuration
-    let config = Config::init();
+    let settings = match Settings::new() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("[!] Configuration Error: {e}");
+            process::exit(1);
+        }
+    };
 
-    // 3. Connect to Database based on Config
-    // This 'db_pool' will be passed to our routes via .with_state()
-    let db_pool = match config.db_type {
+    // 3. Connect to Database
+    let db_pool = match settings.database.db_type {
         DbType::Sql => {
-            println!("🔌 Connecting to SQL (Postgres)...");
-            let repo = SqlxRepo::new(&config.database_url).await
-                .expect("Failed to connect to Postgres");
-            repo.pool
+            // let host = settings.database.host;
+            println!("[*] Connecting to SQL (Postgres) at {}...", settings.database.host);
+
+            match SqlxRepo::new(&settings.database.url).await {
+                Ok(repo) => repo.pool,
+                Err(e) => {
+                    eprintln!("[!] Failed to connect to the DB: {e}");
+                    process::exit(1);
+                }
+            }
         }
         DbType::Surreal => {
-            // Panic for now, as requested, until we build the Surreal side
-            panic!("SurrealDB support is coming next! Change DB_TYPE to 'sql' in .env for now.");
+            eprintln!("[!] SurrealDB is not implemented yet.");
+            process::exit(1);
         }
     };
 
     // 4. Define Routes
-    // We pass 'db_pool' into the app state so handlers can use it
     let app = Router::new()
-        .route("/", get(test_database_connection)) // <--- CHANGED: Uses our new function
+        .route("/", get(test_database_connection))
         .with_state(db_pool);
 
     // 5. Start the Server
-    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("✅ Server listening on http://0.0.0.0:3000");
-
-    axum::serve(listener, app).await.unwrap();
+    let addr = settings.app.address();
+    match TcpListener::bind(&addr).await {
+        Ok(listener) => {
+            println!("[+] Server listening on http://{addr}");
+            if let Err(e) = axum::serve(listener, app).await {
+                eprintln!("[!] Server crashed: {e}");
+                process::exit(1);
+            }
+        }
+        Err(e) => {
+            eprintln!("[!] Failed to bind to address {}: {}", addr, e);
+            process::exit(1);
+        }
+    }
 }
 
-// --- The Simple Function You Requested ---
-// This handler borrows the PgPool from the app state and runs a query.
 async fn test_database_connection(State(pool): State<PgPool>) -> String {
-    // simple query to fetch uuid and email
-    // We cast uuid to TEXT to make it easy to display
     let query = "SELECT uuid::TEXT, email FROM users";
 
     match sqlx::query(query).fetch_all(&pool).await {
         Ok(rows) => {
             if rows.is_empty() {
-                return "✅ Database Connected! (Table 'users' is currently empty)".to_string();
+                return "[+] Database Connected! (Table 'users' is currently empty)".to_string();
             }
-
-            let mut output = String::from("✅ Users in Database:\n");
+            let mut output = String::from("[+] Users in Database:\n");
             for row in rows {
-                let uuid: String = row.get("uuid");
-                let email: String = row.get("email");
-                output.push_str(&format!("- ID: {}, Email: {}\n", uuid, email));
+                let uuid: String = row.try_get("uuid").unwrap_or_default();
+                let email: String = row.try_get("email").unwrap_or_default();
+                output.push_str(&format!("  - ID: {}, Email: {}\n", uuid, email));
             }
             output
         }
-        Err(e) => format!("❌ Database Query Failed: {}", e),
+        Err(e) => format!("[!] Database Query Failed: {}", e),
     }
 }

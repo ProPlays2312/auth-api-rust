@@ -11,7 +11,14 @@ use anyhow::anyhow;
 pub fn hash_password(password: &str) -> Result<String, anyhow::Error> {
     let salt = SaltString::generate(&mut OsRng);
 
-    let argon2 = Argon2::default();
+    let params = argon2::Params::new(4096, 3, 1, Some(4096))
+        .map_err(|e| anyhow!(e.to_string()))?;
+
+    let argon2 = Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+    let password_hash = argon2.hash_password(password.as_bytes(), &salt)
+        .map_err(|e| anyhow!(e.to_string()))?
+        .to_string();
+    // let argon2 = Argon2::;
     let password_hash = argon2.hash_password(password.as_bytes(), &salt)
         .map_err(|e| anyhow!(e.to_string()))?
         .to_string();

@@ -10,23 +10,23 @@ impl SqlxRepo {
         // 1. Create a variable for the URL (as requested)
         let url = db_url;
 
-        println!("🔌 Connecting to database...");
+        println!("[+] Connecting to database...");
 
         // 2. Connect using the URL variable
         let pool = PgPoolOptions::new()
             .max_connections(10)
             .connect(url)
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to create pool: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to create pool: {e}"))?;
 
         // 3. Test the connection explicitly
         // We run a simple query to make sure the database is actually alive
         sqlx::query("SELECT 1")
             .execute(&pool)
             .await
-            .map_err(|e| anyhow::anyhow!("❌ Database connection test failed: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("[!] Database connection test failed: {e}"))?;
 
-        println!("✅ Connection test passed! Initializing schema...");
+        println!("[+] Connection test passed! Initializing schema...");
 
         // 4. Initialize Tables (One-time setup)
         init_schema(&pool).await?;
@@ -43,7 +43,7 @@ impl SqlxRepo {
 async fn init_schema(pool: &PgPool) -> Result<(), anyhow::Error> {
 
     // A. Timestamp Function
-    sqlx::query(r#"
+    sqlx::query(r"
         CREATE OR REPLACE FUNCTION update_timestamp()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -51,12 +51,12 @@ async fn init_schema(pool: &PgPool) -> Result<(), anyhow::Error> {
             RETURN NEW;
         END;
         $$ language 'plpgsql';
-    "#).execute(pool).await?;
+    ").execute(pool).await?;
 
     // B. Create Tables
 
     // Users Table
-    sqlx::query(r#"
+    sqlx::query(r"
         CREATE TABLE IF NOT EXISTS users (
             uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             email VARCHAR(255) NOT NULL UNIQUE,
@@ -67,23 +67,23 @@ async fn init_schema(pool: &PgPool) -> Result<(), anyhow::Error> {
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         );
-    "#).execute(pool).await?;
+    ").execute(pool).await?;
 
     // Profiles Table
-    sqlx::query(r#"
+    sqlx::query(r"
         CREATE TABLE IF NOT EXISTS profiles (
             user_uuid UUID PRIMARY KEY REFERENCES users(uuid) ON DELETE CASCADE,
             first_name VARCHAR(100),
             last_name VARCHAR(100),
             updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         );
-    "#).execute(pool).await?;
+    ").execute(pool).await?;
 
     // C. Triggers
     ensure_trigger(pool, "users", "update_users_modtime").await?;
     ensure_trigger(pool, "profiles", "update_profiles_modtime").await?;
 
-    println!("✅ Schema initialized (Tables & Triggers ready).");
+    println!("[+] Schema initialized (Tables & Triggers ready).");
     Ok(())
 }
 
@@ -97,13 +97,13 @@ async fn ensure_trigger(pool: &PgPool, table: &str, trigger_name: &str) -> Resul
         .await?;
 
     if !exists {
-        let q = format!(r#"
-            CREATE TRIGGER {}
-            BEFORE UPDATE ON {}
+        let q = format!(r"
+            CREATE TRIGGER {trigger_name}
+            BEFORE UPDATE ON {table}
             FOR EACH ROW EXECUTE FUNCTION update_timestamp();
-        "#, trigger_name, table);
+        ");
         sqlx::query(&q).execute(pool).await?;
-        println!("   -> Created missing trigger: {}", trigger_name);
+        println!("   -> Created missing trigger: {trigger_name}");
     }
     Ok(())
 }

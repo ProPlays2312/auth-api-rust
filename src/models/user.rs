@@ -13,7 +13,7 @@ pub struct User {
 
     #[sqlx(rename = "hash")]
     #[serde(skip_serializing)]
-    pub password_hash: String,
+    pub hash: String,
 
     pub is_verified: bool,
     pub is_active: bool,
@@ -27,11 +27,11 @@ pub struct User {
 
 // --- Request DTOs ---
 
+// Frontend sends these during registration
 #[derive(Debug, Deserialize)]
 pub struct CreateUserSchema {
     pub email: String,
     pub password: String,
-    // Frontend sends these during registration
     pub first_name: Option<String>,
     pub last_name: Option<String>,
 }

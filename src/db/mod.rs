@@ -4,7 +4,7 @@ use crate::models::user::{User, CreateUserSchema};
 use std::sync::Arc;
 
 pub mod sql;
-pub mod surreal;
+// pub mod surreal;
 
 #[async_trait]
 pub trait UserRepo: Send + Sync {

@@ -1,0 +1,5 @@
+# rustfmt.toml
+edition = "2024"
+max_width = 100
+use_field_init_shorthand = true # Enforces `Point { x, y }` instead of `Point { x: x, y: y }`
+imports_granularity = "Crate"   # Groups imports nicely
