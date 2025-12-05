@@ -1,10 +1,12 @@
+use crate::models::user::{CreateUserSchema, User};
 // src/db/mod.rs
 use async_trait::async_trait;
-use crate::models::user::{User, CreateUserSchema};
 use std::sync::Arc;
 
+pub mod connection;
 pub mod sql;
-// pub mod surreal;
+
+pub use connection::{connect, test_database_connection};
 
 #[async_trait]
 pub trait UserRepo: Send + Sync {

@@ -25,22 +25,17 @@ pub enum DbType {
 pub struct Database {
     pub url: String,
     pub pool: u32,
-
     #[serde(rename = "type")]
     pub db_type: DbType, // <--- ADDED: Missing field
-
     #[serde(skip, default)]
     pub host: String,
 }
-
 #[derive(Debug, Deserialize)]
 pub struct AppConfig {
     pub host: String,
     pub port: u16,
     pub debug_level: String,
 }
-
-
 impl AppConfig {
     pub fn verify_debug_level(&self) -> bool {
         matches!(
@@ -48,12 +43,10 @@ impl AppConfig {
             "error" | "warn" | "info" | "debug" | "trace"
         )
     }
-
     pub fn address(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
 }
-
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub database: Database,

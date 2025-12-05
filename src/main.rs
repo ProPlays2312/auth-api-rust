@@ -1,4 +1,7 @@
-#![allow(unused)] // For code snippet completeness - remove in actual code
+// For code snippet completeness - remove in actual code
+#![allow(unused)]
+#![allow(clippy::uninlined_format_args)]
+
 #![warn(clippy::pedantic)] // Enable Clippy lints
 #![allow(clippy::missing_errors_doc)] // Allow missing error docs for brevity
 
@@ -9,14 +12,16 @@ mod models;
 mod routes;
 mod utils;
 
-use axum::{extract::State, routing::get, Router};
-use sqlx::{PgPool, Row};
+use axum::{routing::get, Router};
+use sqlx::Row;
 use std::process;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::{DbType, Settings};
-use crate::db::sql::SqlxRepo;
+// use crate::config::{DbType, Settings};
+// use crate::db::sql::SqlxRepo;
+use crate::config::Settings;
+use crate::db::{connect, test_database_connection};
 
 #[tokio::main]
 async fn main() {
@@ -40,24 +45,7 @@ async fn main() {
     };
 
     // 3. Connect to Database
-    let db_pool = match settings.database.db_type {
-        DbType::Sql => {
-            // let host = settings.database.host;
-            println!("[*] Connecting to SQL (Postgres) at {}...", settings.database.host);
-
-            match SqlxRepo::new(&settings.database.url).await {
-                Ok(repo) => repo.pool,
-                Err(e) => {
-                    eprintln!("[!] Failed to connect to the DB: {e}");
-                    process::exit(1);
-                }
-            }
-        }
-        DbType::Surreal => {
-            eprintln!("[!] SurrealDB is not implemented yet.");
-            process::exit(1);
-        }
-    };
+    let db_pool = connect(&settings).await;
 
     // 4. Define Routes
     let app = Router::new()
@@ -70,7 +58,7 @@ async fn main() {
         Ok(listener) => {
             println!("[+] Server listening on http://{addr}");
             if let Err(e) = axum::serve(listener, app)
-                .with_graceful_shutdown(shutdown_signal())
+                .with_graceful_shutdown(utils::extras::shutdown_signal())
                 .await {
                 eprintln!("[!] Server crashed: {e}");
                 process::exit(1);
@@ -83,31 +71,3 @@ async fn main() {
     }
 }
 
-async fn test_database_connection(State(pool): State<PgPool>) -> String {
-    let query = "SELECT uuid::TEXT, email FROM users";
-
-    match sqlx::query(query).fetch_all(&pool).await {
-        Ok(rows) => {
-            if rows.is_empty() {
-                return "[+] Database Connected! (Table 'users' is currently empty)".to_string();
-            }
-            let mut output = String::from("[+] Users in Database:\n");
-            for row in rows {
-                let uuid: String = row.try_get("uuid").unwrap_or_default();
-                let email: String = row.try_get("email").unwrap_or_default();
-                output.push_str(&format!("  - ID: {}, Email: {}\n", uuid, email));
-            }
-            output
-        }
-        Err(e) => format!("[!] Database Query Failed: {}", e),
-    }
-}
-
-async fn shutdown_signal() {
-    // Wait for the CTRL+C signal
-    tokio::signal::ctrl_c()
-        .await
-        .expect("failed to install Ctrl+C handler");
-
-    println!("\n[!] Ctrl+C received. Shutting down gracefully...");
-}
