@@ -8,17 +8,13 @@ use sqlx::FromRow;
 pub struct User {
     #[sqlx(try_from = "String")]
     pub uuid: String,
-
     pub email: String,
-
     #[sqlx(rename = "hash")]
     #[serde(skip_serializing)]
     pub hash: String,
-
     pub is_verified: bool,
     pub is_active: bool,
     pub token_version: i32,
-
     // --- Added from Profiles Table ---
     // These are Option<String> because your DB allows them to be NULL
     pub first_name: Option<String>,
@@ -26,7 +22,6 @@ pub struct User {
 }
 
 // --- Request DTOs ---
-
 // Frontend sends these during registration
 #[derive(Debug, Deserialize)]
 pub struct CreateUserSchema {
@@ -35,13 +30,11 @@ pub struct CreateUserSchema {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
 }
-
 #[derive(Debug, Deserialize)]
 pub struct UserLoginSchema {
     pub email: String,
     pub password: String,
 }
-
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
     pub token: String,

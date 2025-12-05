@@ -1,3 +1,5 @@
+mod register;
+
 use crate::db::test_database_connection;
 use axum::{routing::get, Router};
 use sqlx::PgPool;

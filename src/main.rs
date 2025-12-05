@@ -23,17 +23,7 @@ use crate::db::connect;
 
 #[tokio::main]
 async fn main() {
-    // 1. Initialize Logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    println!("[+] Starting Auth API...");
-
-    // 2. Load Configuration
+    // 1. Load Configuration
     let settings = match Settings::new() {
         Ok(s) => s,
         Err(e) => {
@@ -41,6 +31,18 @@ async fn main() {
             process::exit(1);
         }
     };
+
+    let debug_level = &settings.app.debug_level;
+
+    // Initialize Tracing Subscriber for logging
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| debug_level.into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    println!("[+] Starting Auth API...");
 
     // 3. Connect to Database
     let db_pool = connect(&settings).await;

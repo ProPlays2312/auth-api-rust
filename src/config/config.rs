@@ -65,8 +65,11 @@ impl Settings {
             .set_default("database.url", "postgres://user:pass@localhost:5432/db")?
             .set_default("database.pool", 10)?
             .set_default("database.type", "sql")? // Default to SQL
-            // Env Var Mapping: APP__DATABASE__URL -> database.url
-            .add_source(Environment::with_prefix("APP").separator("__"))
+            .add_source(
+                Environment::with_prefix("APP")
+                    .separator("__")
+                    .try_parsing(true)
+            )
             .build()?;
 
         let mut settings: Settings = config.try_deserialize()?;
