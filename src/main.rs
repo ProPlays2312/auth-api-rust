@@ -12,16 +12,14 @@ mod models;
 mod routes;
 mod utils;
 
-use axum::{routing::get, Router};
+use crate::routes::create_router;
 use sqlx::Row;
 use std::process;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-// use crate::config::{DbType, Settings};
-// use crate::db::sql::SqlxRepo;
 use crate::config::Settings;
-use crate::db::{connect, test_database_connection};
+use crate::db::connect;
 
 #[tokio::main]
 async fn main() {
@@ -48,9 +46,7 @@ async fn main() {
     let db_pool = connect(&settings).await;
 
     // 4. Define Routes
-    let app = Router::new()
-        .route("/", get(test_database_connection))
-        .with_state(db_pool);
+    let app = create_router(db_pool);
 
     // 5. Start the Server
     let addr = settings.app.address();
